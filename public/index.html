@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EE EarnHub — Elite Skill & Rewards</title>
+  <link href="https://googleapis.com" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="payout-ticker">
+    <div class="ticker-track">
+      <span>⚡ 0714***902 withdrew <b>KSh 100</b> (V.I.P)</span>
+      <span>🔥 0798***311 won 4-Round Tic-Tac-Toe <b>+KSh 50</b></span>
+      <span>🧠 0722***645 passed 3:00 AM Brain Test <b>+KSh 40 (0% Tax)</b></span>
+      <span>💎 0701***884 activated <b>V.I.P Mode</b></span>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- SIGN IN & DUAL-OTP -->
+    <div id="authSection" class="auth-wrapper glass-card gold-border">
+      <div class="logo-badge brand-font">EE</div>
+      <h1 class="brand-font" style="text-align:center;">EE EarnHub</h1>
+      <p class="muted-small" style="text-align:center; margin-bottom:18px;">Free Entry • Dual Verification • Extreme Skill Arena</p>
+
+      <div id="stepCredentials">
+        <div class="input-group"><label>Full Name</label><input type="text" id="regName" class="input-field" placeholder="Brian Kamau" /></div>
+        <div class="input-group"><label>Email Address</label><input type="email" id="regEmail" class="input-field" placeholder="brian@example.com" /></div>
+        <div class="input-group"><label>Kenyan Mobile (+254)</label><input type="tel" id="regPhone" class="input-field" placeholder="0712345678" /></div>
+        <button class="btn btn-gold" style="width:100%;" onclick="sendDualOTP()">Send Mobile & Email Codes</button>
+      </div>
+
+      <div id="stepOTP" style="display:none;">
+        <div class="otp-banner">SMS OTP: <b id="hintSms" class="gold-text"></b> | Email OTP: <b id="hintEmail" class="gold-text"></b></div>
+        <div class="input-group"><label>6-Digit Mobile Code</label><input type="text" id="inputSmsOtp" class="input-field" maxlength="6" /></div>
+        <div class="input-group"><label>6-Digit Email Code</label><input type="text" id="inputEmailOtp" class="input-field" maxlength="6" /></div>
+        <button class="btn btn-emerald" style="width:100%;" onclick="verifyDualOTP()">Verify & Enter Arena</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboardSection" style="display:none;">
+      <div class="topbar glass-card">
+        <div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <h2 class="brand-font">EE EarnHub</h2>
+            <span id="userTierBadge" class="tier-pill">FREE TIER</span>
+          </div>
+          <p id="welcomeUser" class="muted-small"></p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-outline" onclick="openTierModal()">👑 Tiers</button>
+          <button class="btn btn-emerald" onclick="openWithdrawModal()">💸 Withdraw</button>
+        </div>
+      </div>
+
+      <div class="wallet-grid">
+        <div class="glass-card gold-border">
+          <div class="stat-label">Available Balance</div>
+          <div class="stat-value emerald">KSh <span id="balAvailable">0</span></div>
+          <div class="muted-small">Min: <b>KSh 50</b> • Tax: <b>KSh <span id="displayTax">9</span></b></div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">Pending (12-Hr Queue)</div>
+          <div class="stat-value gold">KSh <span id="balPending">0</span></div>
+          <div id="pendingTimerText" class="muted-small">No active payout</div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">Tier Privileges</div>
+          <div class="stat-value" style="font-size:1.3rem;"><span id="dailyLimitText">1 Play/Day</span> • <span class="emerald-text">KSh <span id="gameWinText">50</span></span></div>
+          <div class="muted-small">Quiz: <b>KSh <span id="quizWinText">40</span></b> • <b id="tierExpiryText">Unlimited</b></div>
+        </div>
+      </div>
+
+      <div class="glass-card gold-border special-banner">
+        <div>
+          <span class="hard-badge gold-badge">⏰ 3:00 AM SPECIAL • 0% TAX</span>
+          <h3 class="brand-font">3:00 AM Extreme Brain Test</h3>
+          <p class="muted-small">15 Questions • <b>5s each</b> • Score <b>12+</b> to win <b>KSh 40 Tax-Free</b></p>
+        </div>
+        <button class="btn btn-gold" onclick="startBrainTest()">Start 3:00 AM Test</button>
+      </div>
+
+      <div class="section-title"><span class="brand-font">⚔️ Extreme Skill Arena</span></div>
+      <div id="arenaContainer" class="arena-grid"></div>
+    </div>
+  </div>
+
+  <!-- UNIVERSAL MODAL & TOAST -->
+  <div id="appModal" class="modal-backdrop">
+    <div class="modal-box glass-card gold-border">
+      <div class="modal-header">
+        <h3 id="modalTitle" class="brand-font">EE EarnHub</h3>
+        <button class="btn btn-outline" style="padding:5px 11px;" onclick="closeModal()">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+  <script src="games.js"></script>
+</body>
+</html>
