@@ -1,5 +1,5 @@
 const state = {
-  user: null, generatedSmsOtp: '', generatedEmailOtp: '',
+  user: null, generatedSmsOtp: '', generatedEmailOtp: '', resetOtp: '', resetTargetPhone: '',
   balance: 0, pendingBalance: 0, pendingSeconds: 0, tier: 'FREE',
   playsLeft: { ttt: 1, spell: 1, math: 1, mem: 1, word: 1 },
   brainTestPlayedToday: false, activeTimer: null
@@ -19,7 +19,8 @@ const GAMES_LIST = [
   { key: 'word',  badge: '40 SECONDS',        title: 'Cryptic Word Scramble', desc: 'Unscramble 6 complex 8-to-10 letter words.', fn: 'startWordScramble()' }
 ];
 
-const registeredAccounts = JSON.parse(localStorage.getItem('ee_earnhub_registry') || '[]');
+function getAccounts() { return JSON.parse(localStorage.getItem('ee_earnhub_users') || '[]'); }
+function saveAccounts(list) { localStorage.setItem('ee_earnhub_users', JSON.stringify(list)); }
 
 function showToast(msg, isError = false) {
   const t = document.getElementById('toast');
@@ -28,44 +29,113 @@ function showToast(msg, isError = false) {
   t.style.display = 'block';
   setTimeout(() => { t.style.display = 'none'; }, 3600);
 }
+function switchAuthTab(mode) {
+  document.getElementById('authTabs').style.display = 'flex';
+  document.getElementById('viewSignIn').style.display = mode === 'signin' ? 'block' : 'none';
+  document.getElementById('viewSignUp').style.display = mode === 'signup' ? 'block' : 'none';
+  document.getElementById('viewSignupOTP').style.display = 'none';
+  document.getElementById('viewForgot').style.display = 'none';
+  document.getElementById('tabSignIn').className = mode === 'signin' ? 'btn btn-gold' : 'btn btn-outline';
+  document.getElementById('tabSignUp').className = mode === 'signup' ? 'btn btn-gold' : 'btn btn-outline';
+}
+
+function showForgotView() {
+  document.getElementById('authTabs').style.display = 'none';
+  document.getElementById('viewSignIn').style.display = 'none';
+  document.getElementById('viewSignUp').style.display = 'none';
+  document.getElementById('viewForgot').style.display = 'block';
+  document.getElementById('forgotStep1').style.display = 'block';
+  document.getElementById('forgotStep2').style.display = 'none';
+}
 
 function sendDualOTP() {
   const name = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const phone = document.getElementById('regPhone').value.trim();
-  if (!name || !email.includes('@') || phone.length < 9) return showToast('Enter valid Name, Email & Phone.', true);
+  const pass = document.getElementById('regPassword').value;
 
-  const dup = registeredAccounts.find(a => a.email === email || a.phone === phone);
-  if (dup && dup.name.toLowerCase() !== name.toLowerCase()) return showToast('Email or Phone already bound to another account.', true);
+  if (!name || !email.includes('@') || phone.length < 9 || pass.length < 6) {
+    return showToast('Fill all fields (Password must be at least 6 characters).', true);
+  }
+  if (getAccounts().some(a => a.email === email || a.phone === phone)) {
+    return showToast('Account already exists with this Email or Phone. Please Sign In.', true);
+  }
 
   state.generatedSmsOtp = Math.floor(100000 + Math.random() * 900000).toString();
   state.generatedEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
   document.getElementById('hintSms').textContent = state.generatedSmsOtp;
   document.getElementById('hintEmail').textContent = state.generatedEmailOtp;
-  document.getElementById('stepCredentials').style.display = 'none';
-  document.getElementById('stepOTP').style.display = 'block';
+  document.getElementById('authTabs').style.display = 'none';
+  document.getElementById('viewSignUp').style.display = 'none';
+  document.getElementById('viewSignupOTP').style.display = 'block';
+  showToast('Verification codes sent to Mobile & Email!');
 }
 
 function verifyDualOTP() {
   if (document.getElementById('inputSmsOtp').value.trim() !== state.generatedSmsOtp ||
       document.getElementById('inputEmailOtp').value.trim() !== state.generatedEmailOtp) {
-    return showToast('Invalid SMS or Email OTP.', true);
+    return showToast('Invalid SMS or Email verification code.', true);
   }
-  state.user = {
+  const newUser = {
     name: document.getElementById('regName').value.trim(),
     email: document.getElementById('regEmail').value.trim().toLowerCase(),
-    phone: document.getElementById('regPhone').value.trim()
+    phone: document.getElementById('regPhone').value.trim(),
+    password: document.getElementById('regPassword').value
   };
-  if (!registeredAccounts.some(a => a.email === state.user.email)) {
-    registeredAccounts.push(state.user);
-    localStorage.setItem('ee_earnhub_registry', JSON.stringify(registeredAccounts));
-  }
-  document.getElementById('authSection').style.display = 'none';
-  document.getElementById('dashboardSection').style.display = 'block';
-  document.getElementById('welcomeUser').textContent = `${state.user.name} • ${state.user.phone} • ${state.user.email}`;
-  refreshDashboard();
+  const accounts = getAccounts();
+  accounts.push(newUser);
+  saveAccounts(accounts);
+  enterDashboard(newUser);
+}
+function handleSignIn() {
+  const id = document.getElementById('loginIdentifier').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPassword').value;
+  const user = getAccounts().find(a => (a.email === id || a.phone === id) && a.password === pass);
+  if (!user) return showToast('Invalid Email/Phone or Password.', true);
+  enterDashboard(user);
 }
 
+function sendResetSMS() {
+  const phone = document.getElementById('resetPhone').value.trim();
+  const user = getAccounts().find(a => a.phone === phone);
+  if (!user) return showToast('No account found with that mobile number.', true);
+
+  state.resetTargetPhone = phone;
+  state.resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  document.getElementById('hintResetSms').textContent = state.resetOtp;
+  document.getElementById('forgotStep1').style.display = 'none';
+  document.getElementById('forgotStep2').style.display = 'block';
+  showToast('Password reset code sent to your mobile number!');
+}
+
+function confirmPasswordReset() {
+  const code = document.getElementById('inputResetOtp').value.trim();
+  const newPass = document.getElementById('newResetPassword').value;
+  if (code !== state.resetOtp) return showToast('Invalid SMS reset code.', true);
+  if (newPass.length < 6) return showToast('New password must be at least 6 characters.', true);
+
+  const accounts = getAccounts();
+  const idx = accounts.findIndex(a => a.phone === state.resetTargetPhone);
+  if (idx !== -1) { accounts[idx].password = newPass; saveAccounts(accounts); }
+  showToast('Password updated! You can now Sign In.');
+  switchAuthTab('signin');
+}
+
+function enterDashboard(user) {
+  state.user = user;
+  document.getElementById('authSection').style.display = 'none';
+  document.getElementById('dashboardSection').style.display = 'block';
+  document.getElementById('welcomeUser').textContent = `${user.name} • ${user.phone} • ${user.email}`;
+  refreshDashboard();
+  showToast(`Welcome back, ${user.name}!`);
+}
+
+function logoutUser() {
+  state.user = null;
+  document.getElementById('dashboardSection').style.display = 'none';
+  document.getElementById('authSection').style.display = 'block';
+  switchAuthTab('signin');
+}
 function refreshDashboard() {
   const cfg = TIERS[state.tier];
   document.getElementById('userTierBadge').textContent = cfg.label;
