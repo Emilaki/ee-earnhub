@@ -1,14 +1,14 @@
 const state = {
   user: null, generatedSmsOtp: '', generatedEmailOtp: '', resetOtp: '', resetTargetPhone: '',
-  balance: 0, pendingBalance: 0, pendingSeconds: 0, tier: 'FREE',
+  balance: 0, pendingBalance: 0, pendingSeconds: 0, tier: 'FREE', tierExpiresAt: null,
   playsLeft: { ttt: 1, spell: 1, math: 1, mem: 1, word: 1 },
   brainTestPlayedToday: false, activeTimer: null
 };
 
 const TIERS = {
-  FREE:    { label: 'FREE TIER', dailyLimit: 1, gameWin: 50,  gameTax: 9,  quizWin: 40, quizTax: 9,  expiry: 'Unlimited' },
-  PREMIUM: { label: 'PREMIUM (10D)', dailyLimit: 3, gameWin: 80,  gameTax: 15, quizWin: 40, quizTax: 9,  expiry: '10 Days' },
-  VIP:     { label: 'V.I.P MODE (10D)', dailyLimit: 5, gameWin: 120, gameTax: 20, quizWin: 90, quizTax: 20, expiry: '10 Days' }
+  FREE:    { label: 'REGULAR (FREE)', dailyLimit: 1, gameWin: 50,  gameTax: 9,  quizWin: 40, quizTax: 9,  days: 0 },
+  PREMIUM: { label: 'PREMIUM (10D)',  dailyLimit: 3, gameWin: 80,  gameTax: 15, quizWin: 40, quizTax: 9,  days: 10 },
+  VIP:     { label: 'V.I.P MODE (10D)',dailyLimit: 5, gameWin: 120, gameTax: 20, quizWin: 90, quizTax: 20, days: 10 }
 };
 
 const GAMES_LIST = [
@@ -28,6 +28,15 @@ function showToast(msg, isError = false) {
   t.innerHTML = msg;
   t.style.display = 'block';
   setTimeout(() => { t.style.display = 'none'; }, 3600);
+}
+
+function checkTierExpiry() {
+  if (state.tier !== 'FREE' && state.tierExpiresAt && Date.now() > state.tierExpiresAt) {
+    state.tier = 'FREE';
+    state.tierExpiresAt = null;
+    state.playsLeft = { ttt: 1, spell: 1, math: 1, mem: 1, word: 1 };
+    showToast('Your 10-day subscription expired. Switched back to Regular Games.', true);
+  }
 }
 function switchAuthTab(mode) {
   document.getElementById('authTabs').style.display = 'flex';
@@ -68,7 +77,6 @@ function sendDualOTP() {
   document.getElementById('authTabs').style.display = 'none';
   document.getElementById('viewSignUp').style.display = 'none';
   document.getElementById('viewSignupOTP').style.display = 'block';
-  showToast('Verification codes sent to Mobile & Email!');
 }
 
 function verifyDualOTP() {
@@ -87,6 +95,7 @@ function verifyDualOTP() {
   saveAccounts(accounts);
   enterDashboard(newUser);
 }
+
 function handleSignIn() {
   const id = document.getElementById('loginIdentifier').value.trim().toLowerCase();
   const pass = document.getElementById('loginPassword').value;
@@ -97,15 +106,12 @@ function handleSignIn() {
 
 function sendResetSMS() {
   const phone = document.getElementById('resetPhone').value.trim();
-  const user = getAccounts().find(a => a.phone === phone);
-  if (!user) return showToast('No account found with that mobile number.', true);
-
+  if (!getAccounts().find(a => a.phone === phone)) return showToast('No account found with that mobile number.', true);
   state.resetTargetPhone = phone;
   state.resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
   document.getElementById('hintResetSms').textContent = state.resetOtp;
   document.getElementById('forgotStep1').style.display = 'none';
   document.getElementById('forgotStep2').style.display = 'block';
-  showToast('Password reset code sent to your mobile number!');
 }
 
 function confirmPasswordReset() {
@@ -113,21 +119,18 @@ function confirmPasswordReset() {
   const newPass = document.getElementById('newResetPassword').value;
   if (code !== state.resetOtp) return showToast('Invalid SMS reset code.', true);
   if (newPass.length < 6) return showToast('New password must be at least 6 characters.', true);
-
   const accounts = getAccounts();
   const idx = accounts.findIndex(a => a.phone === state.resetTargetPhone);
   if (idx !== -1) { accounts[idx].password = newPass; saveAccounts(accounts); }
   showToast('Password updated! You can now Sign In.');
   switchAuthTab('signin');
 }
-
 function enterDashboard(user) {
   state.user = user;
   document.getElementById('authSection').style.display = 'none';
   document.getElementById('dashboardSection').style.display = 'block';
   document.getElementById('welcomeUser').textContent = `${user.name} • ${user.phone} • ${user.email}`;
   refreshDashboard();
-  showToast(`Welcome back, ${user.name}!`);
 }
 
 function logoutUser() {
@@ -136,16 +139,20 @@ function logoutUser() {
   document.getElementById('authSection').style.display = 'block';
   switchAuthTab('signin');
 }
+
 function refreshDashboard() {
+  checkTierExpiry();
   const cfg = TIERS[state.tier];
   document.getElementById('userTierBadge').textContent = cfg.label;
   document.getElementById('balAvailable').textContent = state.balance;
   document.getElementById('balPending').textContent = state.pendingBalance;
   document.getElementById('displayTax').textContent = cfg.gameTax;
-  document.getElementById('dailyLimitText').textContent = `${cfg.dailyLimit} Play${cfg.dailyLimit > 1 ? 's' : ''}/Day`;
+
+  // FIXED: Displays "1 Game per Day", "3 Games per Day", or "5 Games per Day"
+  document.getElementById('dailyLimitText').textContent = `${cfg.dailyLimit} Game${cfg.dailyLimit > 1 ? 's' : ''} per Day`;
   document.getElementById('gameWinText').textContent = cfg.gameWin;
   document.getElementById('quizWinText').textContent = cfg.quizWin;
-  document.getElementById('tierExpiryText').textContent = cfg.expiry;
+  document.getElementById('tierExpiryText').textContent = cfg.days > 0 ? `${cfg.days} Days` : 'Unlimited';
 
   document.getElementById('arenaContainer').innerHTML = GAMES_LIST.map(g => {
     const left = state.playsLeft[g.key];
@@ -157,8 +164,8 @@ function refreshDashboard() {
           <p class="muted-small" style="margin:8px 0 14px;">${g.desc}</p>
         </div>
         <div>
-          <div class="plays-left">Plays Left Today: <b>${left}</b></div>
-          <button class="btn btn-gold" style="width:100%;" ${left <= 0 ? 'disabled' : ''} onclick="${g.fn}">Play Now</button>
+          <div class="plays-left">Games Left Today: <b>${left} / ${cfg.dailyLimit}</b></div>
+          <button class="btn btn-gold" style="width:100%;" ${left <= 0 ? 'disabled' : ''} onclick="${g.fn}">Play Game</button>
         </div>
       </div>`;
   }).join('');
@@ -175,17 +182,26 @@ function closeModal() {
   document.getElementById('appModal').classList.remove('active');
 }
 
+// FIXED: Includes "Regular Games (Free)" option so users can switch back anytime
 function openTierModal() {
-  openModal('👑 Upgrade Membership', `
+  openModal('👑 Game Modes & Tiers', `
     <div class="glass-card" style="margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><h4>Premium (10 Days)</h4><p class="muted-small">3 plays/day • KSh 80/win (Tax KSh 15)</p></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div><h4>Regular Games (Free)</h4><p class="muted-small">1 game per day • Win KSh 50 (Tax KSh 9)</p></div>
+        <button class="btn btn-outline" ${state.tier === 'FREE' ? 'disabled' : ''} onclick="activateTier('FREE')">
+          ${state.tier === 'FREE' ? 'Active' : 'Switch Free'}
+        </button>
+      </div>
+    </div>
+    <div class="glass-card" style="margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div><h4>Premium Mode (10 Days)</h4><p class="muted-small">3 games per day • Win KSh 80 (Tax KSh 15)</p></div>
         <button class="btn btn-gold" onclick="activateTier('PREMIUM')">KSh 450</button>
       </div>
     </div>
     <div class="glass-card gold-border">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><h4 class="gold-text">💎 V.I.P Mode (10 Days)</h4><p class="muted-small">5 plays/day • KSh 120/game & KSh 90/quiz (Tax KSh 20)</p></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div><h4 class="gold-text">💎 V.I.P Mode (10 Days)</h4><p class="muted-small">5 games per day • Win KSh 120/game & KSh 90/quiz (Tax KSh 20)</p></div>
         <button class="btn btn-emerald" onclick="activateTier('VIP')">KSh 1,000</button>
       </div>
     </div>`);
@@ -194,9 +210,10 @@ function openTierModal() {
 function activateTier(t) {
   state.tier = t;
   const lim = TIERS[t].dailyLimit;
+  state.tierExpiresAt = TIERS[t].days > 0 ? Date.now() + (TIERS[t].days * 86400000) : null;
   state.playsLeft = { ttt: lim, spell: lim, math: lim, mem: lim, word: lim };
   closeModal(); refreshDashboard();
-  showToast(`Activated ${TIERS[t].label}!`);
+  showToast(`Switched to ${TIERS[t].label}!`);
 }
 
 function openWithdrawModal() {
