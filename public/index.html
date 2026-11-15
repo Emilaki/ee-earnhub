@@ -1,237 +1,136 @@
-const state = {
-  user: null, generatedSmsOtp: '', generatedEmailOtp: '', resetOtp: '', resetTargetPhone: '',
-  balance: 0, pendingBalance: 0, pendingSeconds: 0, tier: 'FREE',
-  playsLeft: { ttt: 1, spell: 1, math: 1, mem: 1, word: 1 },
-  brainTestPlayedToday: false, activeTimer: null
-};
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EE EarnHub — Elite Skill & Rewards</title>
+  <link href="https://googleapis.com" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
 
-const TIERS = {
-  FREE:    { label: 'FREE TIER', dailyLimit: 1, gameWin: 50,  gameTax: 9,  quizWin: 40, quizTax: 9,  expiry: 'Unlimited' },
-  PREMIUM: { label: 'PREMIUM (10D)', dailyLimit: 3, gameWin: 80,  gameTax: 15, quizWin: 40, quizTax: 9,  expiry: '10 Days' },
-  VIP:     { label: 'V.I.P MODE (10D)', dailyLimit: 5, gameWin: 120, gameTax: 20, quizWin: 90, quizTax: 20, expiry: '10 Days' }
-};
+  <div class="payout-ticker">
+    <div class="ticker-track">
+      <span>⚡ 0714***902 withdrew <b>KSh 100</b> (V.I.P)</span>
+      <span>🔥 0798***311 won 4-Round Tic-Tac-Toe <b>+KSh 50</b></span>
+      <span>🧠 0722***645 passed 3:00 AM Brain Test <b>+KSh 40 (0% Tax)</b></span>
+      <span>💎 0701***884 activated <b>V.I.P Mode</b></span>
+    </div>
+  </div>
 
-const GAMES_LIST = [
-  { key: 'ttt',   badge: 'WIN 3 OF 4 ROUNDS', title: '4-Round Tic-Tac-Toe', desc: 'Beat Grandmaster AI in 3 of 4 consecutive rounds.', fn: 'startTTT()' },
-  { key: 'spell', badge: 'SCORE 9+ OF 10',    title: '10-Word Spelling Quiz', desc: 'Pick the exact spelling out of 3 tricky options.', fn: 'startSpellingQuiz()' },
-  { key: 'math',  badge: '35 SECONDS • 0 ERR',title: 'Speed Math Blitz', desc: 'Solve 10 multi-step equations before time expires.', fn: 'startMathBlitz()' },
-  { key: 'mem',   badge: '1.2s FLASH • 5x5',  title: 'Pattern Memory Matrix', desc: 'Recall up to 9 flashing tiles across 3 stages.', fn: 'startMemoryGame()' },
-  { key: 'word',  badge: '40 SECONDS',        title: 'Cryptic Word Scramble', desc: 'Unscramble 6 complex 8-to-10 letter words.', fn: 'startWordScramble()' }
-];
+  <div class="container">
+    <div id="authSection" class="auth-wrapper glass-card gold-border">
+      <div class="logo-badge brand-font">EE</div>
+      <h1 class="brand-font" style="text-align:center;">EE EarnHub</h1>
+      <p class="muted-small" style="text-align:center; margin-bottom:16px;">Free Entry • Secure Verification • Extreme Skill Arena</p>
 
-function getAccounts() { return JSON.parse(localStorage.getItem('ee_earnhub_users') || '[]'); }
-function saveAccounts(list) { localStorage.setItem('ee_earnhub_users', JSON.stringify(list)); }
+      <div id="authTabs" style="display:flex; gap:8px; margin-bottom:18px;">
+        <button id="tabSignIn" class="btn btn-gold" style="flex:1;" onclick="switchAuthTab('signin')">Sign In</button>
+        <button id="tabSignUp" class="btn btn-outline" style="flex:1;" onclick="switchAuthTab('signup')">Sign Up (Free)</button>
+      </div>
 
-function showToast(msg, isError = false) {
-  const t = document.getElementById('toast');
-  t.style.borderLeftColor = isError ? 'var(--crimson)' : 'var(--emerald)';
-  t.innerHTML = msg;
-  t.style.display = 'block';
-  setTimeout(() => { t.style.display = 'none'; }, 3600);
-}
-
-function switchAuthTab(mode) {
-  document.getElementById('authTabs').style.display = 'flex';
-  document.getElementById('viewSignIn').style.display = mode === 'signin' ? 'block' : 'none';
-  document.getElementById('viewSignUp').style.display = mode === 'signup' ? 'block' : 'none';
-  document.getElementById('viewSignupOTP').style.display = 'none';
-  document.getElementById('viewForgot').style.display = 'none';
-  document.getElementById('tabSignIn').className = mode === 'signin' ? 'btn btn-gold' : 'btn btn-outline';
-  document.getElementById('tabSignUp').className = mode === 'signup' ? 'btn btn-gold' : 'btn btn-outline';
-}
-
-function showForgotView() {
-  document.getElementById('authTabs').style.display = 'none';
-  document.getElementById('viewSignIn').style.display = 'none';
-  document.getElementById('viewForgot').style.display = 'block';
-  document.getElementById('forgotStep1').style.display = 'block';
-  document.getElementById('forgotStep2').style.display = 'none';
-}
-function sendDualOTP() {
-  const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim().toLowerCase();
-  const phone = document.getElementById('regPhone').value.trim();
-  const pass = document.getElementById('regPassword').value;
-
-  if (!name || !email.includes('@') || phone.length < 9 || pass.length < 6) {
-    return showToast('Fill all fields (Password must be at least 6 characters).', true);
-  }
-  if (getAccounts().some(a => a.email === email || a.phone === phone)) {
-    return showToast('Account already exists with this Email or Phone. Please Sign In.', true);
-  }
-
-  state.generatedSmsOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  state.generatedEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  document.getElementById('hintSms').textContent = state.generatedSmsOtp;
-  document.getElementById('hintEmail').textContent = state.generatedEmailOtp;
-  document.getElementById('authTabs').style.display = 'none';
-  document.getElementById('viewSignUp').style.display = 'none';
-  document.getElementById('viewSignupOTP').style.display = 'block';
-  showToast('Verification codes sent to Mobile & Email!');
-}
-
-function verifyDualOTP() {
-  if (document.getElementById('inputSmsOtp').value.trim() !== state.generatedSmsOtp ||
-      document.getElementById('inputEmailOtp').value.trim() !== state.generatedEmailOtp) {
-    return showToast('Invalid SMS or Email verification code.', true);
-  }
-  const newUser = {
-    name: document.getElementById('regName').value.trim(),
-    email: document.getElementById('regEmail').value.trim().toLowerCase(),
-    phone: document.getElementById('regPhone').value.trim(),
-    password: document.getElementById('regPassword').value
-  };
-  const accounts = getAccounts();
-  accounts.push(newUser);
-  saveAccounts(accounts);
-  enterDashboard(newUser);
-}
-
-function handleSignIn() {
-  const id = document.getElementById('loginIdentifier').value.trim().toLowerCase();
-  const pass = document.getElementById('loginPassword').value;
-  const user = getAccounts().find(a => (a.email === id || a.phone === id) && a.password === pass);
-  if (!user) return showToast('Invalid Email/Phone or Password.', true);
-  enterDashboard(user);
-}
-
-function sendResetSMS() {
-  const phone = document.getElementById('resetPhone').value.trim();
-  const user = getAccounts().find(a => a.phone === phone);
-  if (!user) return showToast('No account found with that mobile number.', true);
-
-  state.resetTargetPhone = phone;
-  state.resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  document.getElementById('hintResetSms').textContent = state.resetOtp;
-  document.getElementById('forgotStep1').style.display = 'none';
-  document.getElementById('forgotStep2').style.display = 'block';
-  showToast('Password reset code sent to your mobile number!');
-}
-
-function confirmPasswordReset() {
-  const code = document.getElementById('inputResetOtp').value.trim();
-  const newPass = document.getElementById('newResetPassword').value;
-  if (code !== state.resetOtp) return showToast('Invalid SMS reset code.', true);
-  if (newPass.length < 6) return showToast('New password must be at least 6 characters.', true);
-
-  const accounts = getAccounts();
-  const idx = accounts.findIndex(a => a.phone === state.resetTargetPhone);
-  if (idx !== -1) { accounts[idx].password = newPass; saveAccounts(accounts); }
-  showToast('Password updated! You can now Sign In.');
-  switchAuthTab('signin');
-}
-    function enterDashboard(user) {
-  state.user = user;
-  document.getElementById('authSection').style.display = 'none';
-  document.getElementById('dashboardSection').style.display = 'block';
-  document.getElementById('welcomeUser').textContent = `${user.name} • ${user.phone} • ${user.email}`;
-  refreshDashboard();
-  showToast(`Welcome back, ${user.name}!`);
-}
-
-function logoutUser() {
-  state.user = null;
-  document.getElementById('dashboardSection').style.display = 'none';
-  document.getElementById('authSection').style.display = 'block';
-  switchAuthTab('signin');
-}
-
-function refreshDashboard() {
-  const cfg = TIERS[state.tier];
-  document.getElementById('userTierBadge').textContent = cfg.label;
-  document.getElementById('balAvailable').textContent = state.balance;
-  document.getElementById('balPending').textContent = state.pendingBalance;
-  document.getElementById('displayTax').textContent = cfg.gameTax;
-  document.getElementById('dailyLimitText').textContent = `${cfg.dailyLimit} Play${cfg.dailyLimit > 1 ? 's' : ''}/Day`;
-  document.getElementById('gameWinText').textContent = cfg.gameWin;
-  document.getElementById('quizWinText').textContent = cfg.quizWin;
-  document.getElementById('tierExpiryText').textContent = cfg.expiry;
-
-  document.getElementById('arenaContainer').innerHTML = GAMES_LIST.map(g => {
-    const left = state.playsLeft[g.key];
-    return `
-      <div class="glass-card game-card">
-        <div>
-          <span class="hard-badge">EXTREME • ${g.badge}</span>
-          <h3>${g.title}</h3>
-          <p class="muted-small" style="margin:8px 0 14px;">${g.desc}</p>
+      <div id="viewSignIn">
+        <div class="input-group"><label>Email or Mobile Number</label><input type="text" id="loginIdentifier" class="input-field" placeholder="brian@example.com or 0712345678" /></div>
+        <div class="input-group"><label>Password</label><input type="password" id="loginPassword" class="input-field" placeholder="Enter your password" /></div>
+        <div style="text-align:right; margin-bottom:14px;">
+          <a href="#" onclick="showForgotView(); return false;" style="color:var(--gold); font-size:0.82rem; text-decoration:none;">Forgot Password?</a>
         </div>
-        <div>
-          <div class="plays-left">Plays Left Today: <b>${left}</b></div>
-          <button class="btn btn-gold" style="width:100%;" ${left <= 0 ? 'disabled' : ''} onclick="${g.fn}">Play Now</button>
+        <button class="btn btn-emerald" style="width:100%;" onclick="handleSignIn()">Sign In to Arena</button>
+      </div>
+
+      <div id="viewSignUp" style="display:none;">
+        <div class="input-group"><label>Full Name</label><input type="text" id="regName" class="input-field" placeholder="Brian Kamau" /></div>
+        <div class="input-group"><label>Email Address</label><input type="email" id="regEmail" class="input-field" placeholder="brian@example.com" /></div>
+        <div class="input-group"><label>Kenyan Mobile (+254)</label><input type="tel" id="regPhone" class="input-field" placeholder="0712345678" /></div>
+        <div class="input-group"><label>Create Password</label><input type="password" id="regPassword" class="input-field" placeholder="Min 6 characters" /></div>
+        <button class="btn btn-gold" style="width:100%;" onclick="sendDualOTP()">Send Mobile & Email Verification Codes</button>
+      </div>
+
+      <div id="viewSignupOTP" style="display:none;">
+        <div class="otp-banner">SMS OTP: <b id="hintSms" class="gold-text"></b> | Email OTP: <b id="hintEmail" class="gold-text"></b></div>
+        <div class="input-group"><label>6-Digit Mobile Code</label><input type="text" id="inputSmsOtp" class="input-field" maxlength="6" /></div>
+        <div class="input-group"><label>6-Digit Email Code</label><input type="text" id="inputEmailOtp" class="input-field" maxlength="6" /></div>
+        <button class="btn btn-emerald" style="width:100%;" onclick="verifyDualOTP()">Verify & Create Account</button>
+      </div>
+
+      <div id="viewForgot" style="display:none;">
+        <h3 style="margin-bottom:10px; font-size:1.05rem;">Reset Password via Mobile SMS</h3>
+        <div id="forgotStep1">
+          <div class="input-group"><label>Registered Mobile Number</label><input type="tel" id="resetPhone" class="input-field" placeholder="0712345678" /></div>
+          <button class="btn btn-gold" style="width:100%;" onclick="sendResetSMS()">Send SMS Reset Code</button>
         </div>
-      </div>`;
-  }).join('');
-}
-
-function openModal(title, html) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = html;
-  document.getElementById('appModal').classList.add('active');
-}
-
-function closeModal() {
-  if (state.activeTimer) clearInterval(state.activeTimer);
-  document.getElementById('appModal').classList.remove('active');
-}
-
-function openTierModal() {
-  openModal('👑 Upgrade Membership', `
-    <div class="glass-card" style="margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><h4>Premium (10 Days)</h4><p class="muted-small">3 plays/day • KSh 80/win (Tax KSh 15)</p></div>
-        <button class="btn btn-gold" onclick="activateTier('PREMIUM')">KSh 450</button>
+        <div id="forgotStep2" style="display:none;">
+          <div class="otp-banner">Mobile Reset Code Sent: <b id="hintResetSms" class="gold-text"></b></div>
+          <div class="input-group"><label>6-Digit Mobile Code</label><input type="text" id="inputResetOtp" class="input-field" maxlength="6" /></div>
+          <div class="input-group"><label>New Password</label><input type="password" id="newResetPassword" class="input-field" placeholder="Enter new password" /></div>
+          <button class="btn btn-emerald" style="width:100%;" onclick="confirmPasswordReset()">Update Password & Sign In</button>
+        </div>
+        <div style="text-align:center; margin-top:12px;">
+          <a href="#" onclick="switchAuthTab('signin'); return false;" style="color:var(--text-muted); font-size:0.82rem;">← Back to Sign In</a>
+        </div>
       </div>
     </div>
-    <div class="glass-card gold-border">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><h4 class="gold-text">💎 V.I.P Mode (10 Days)</h4><p class="muted-small">5 plays/day • KSh 120/game & KSh 90/quiz (Tax KSh 20)</p></div>
-        <button class="btn btn-emerald" onclick="activateTier('VIP')">KSh 1,000</button>
+
+    <div id="dashboardSection" style="display:none;">
+      <div class="topbar glass-card">
+        <div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <h2 class="brand-font">EE EarnHub</h2>
+            <span id="userTierBadge" class="tier-pill">FREE TIER</span>
+          </div>
+          <p id="welcomeUser" class="muted-small"></p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="openTierModal()">👑 Tiers</button>
+          <button class="btn btn-emerald" onclick="openWithdrawModal()">💸 Withdraw</button>
+          <button class="btn btn-outline" onclick="logoutUser()">Logout</button>
+        </div>
       </div>
-    </div>`);
-}
 
-function activateTier(t) {
-  state.tier = t;
-  const lim = TIERS[t].dailyLimit;
-  state.playsLeft = { ttt: lim, spell: lim, math: lim, mem: lim, word: lim };
-  closeModal(); refreshDashboard();
-  showToast(`Activated ${TIERS[t].label}!`);
-}
+      <div class="wallet-grid">
+        <div class="glass-card gold-border">
+          <div class="stat-label">Available Balance</div>
+          <div class="stat-value emerald">KSh <span id="balAvailable">0</span></div>
+          <div class="muted-small">Min: <b>KSh 50</b> • Tax: <b>KSh <span id="displayTax">9</span></b></div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">Pending (12-Hr Queue)</div>
+          <div class="stat-value gold">KSh <span id="balPending">0</span></div>
+          <div id="pendingTimerText" class="muted-small">No active payout</div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">Tier Privileges</div>
+          <div class="stat-value" style="font-size:1.3rem;"><span id="dailyLimitText">1 Play/Day</span> • <span class="emerald-text">KSh <span id="gameWinText">50</span></span></div>
+          <div class="muted-small">Quiz: <b>KSh <span id="quizWinText">40</span></b> • <b id="tierExpiryText">Unlimited</b></div>
+        </div>
+      </div>
 
-function openWithdrawModal() {
-  const tax = TIERS[state.tier].gameTax;
-  openModal('💸 M-Pesa Withdrawal', `
-    <div class="input-group"><label>Amount (Min KSh 50)</label>
-      <input type="number" id="wAmt" class="input-field" min="50" value="50" oninput="document.getElementById('wNet').textContent=Math.max(0,this.value-${tax})" />
+      <div class="glass-card gold-border special-banner">
+        <div>
+          <span class="hard-badge gold-badge">⏰ 3:00 AM SPECIAL • 0% TAX</span>
+          <h3 class="brand-font">3:00 AM Extreme Brain Test</h3>
+          <p class="muted-small">15 Questions • <b>5s each</b> • Score <b>12+</b> to win <b>KSh 40 Tax-Free</b></p>
+        </div>
+        <button class="btn btn-gold" onclick="startBrainTest()">Start 3:00 AM Test</button>
+      </div>
+
+      <div class="section-title"><span class="brand-font">⚔️ Extreme Skill Arena</span></div>
+      <div id="arenaContainer" class="arena-grid"></div>
     </div>
-    <div class="withdraw-summary">Tax: <b style="color:var(--crimson);">-KSh ${tax}</b> • You Receive: <b class="emerald-text">KSh <span id="wNet">${50 - tax}</span></b></div>
-    <button class="btn btn-emerald" style="width:100%;" onclick="processWithdrawal()">Confirm (12-Hr Processing)</button>`);
-}
+  </div>
 
-function processWithdrawal() {
-  const amt = parseInt(document.getElementById('wAmt').value || 0, 10);
-  const tax = TIERS[state.tier].gameTax;
-  if (amt < 50) return showToast('Minimum withdrawal is KSh 50.', true);
-  if (amt > state.balance) return showToast('Insufficient balance.', true);
-  state.balance -= amt;
-  state.pendingBalance += (amt - tax);
-  state.pendingSeconds = 12 * 3600;
-  closeModal(); refreshDashboard();
-  if (window.payoutInt) clearInterval(window.payoutInt);
-  window.payoutInt = setInterval(() => {
-    if (--state.pendingSeconds <= 0) { clearInterval(window.payoutInt); state.pendingBalance = 0; refreshDashboard(); return; }
-    const h = String(Math.floor(state.pendingSeconds / 3600)).padStart(2, '0');
-    const m = String(Math.floor((state.pendingSeconds % 3600) / 60)).padStart(2, '0');
-    const s = String(state.pendingSeconds % 60).padStart(2, '0');
-    document.getElementById('pendingTimerText').innerHTML = `Arriving in <b class="gold-text">${h}:${m}:${s}</b>`;
-  }, 1000);
-  showToast(`KSh ${amt - tax} queued! Arrives in 12 hours.`);
-}
+  <div id="appModal" class="modal-backdrop">
+    <div class="modal-box glass-card gold-border">
+      <div class="modal-header">
+        <h3 id="modalTitle" class="brand-font">EE EarnHub</h3>
+        <button class="btn btn-outline" style="padding:5px 11px;" onclick="closeModal()">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
 
-function awardGameWin(isQuiz = false, taxFree = 0) {
-  const win = taxFree > 0 ? taxFree : (isQuiz ? TIERS[state.tier].quizWin : TIERS[state.tier].gameWin);
-  state.balance += win;
-  refreshDashboard();
-  showToast(`🎉 VICTORY! +KSh ${win} added to your wallet!`);
-}
+  <script src="app.js"></script>
+  <script src="games.js"></script>
+</body>
+</html>
