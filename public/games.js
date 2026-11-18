@@ -37,8 +37,10 @@ function evaluateRoundEnd() {
   const winner = checkWinner(tttState.board);
   const full = tttState.board.every(c => c !== null);
   if (!winner && !full) return false;
+
   if (winner === 'X') tttState.userWins++;
   else tttState.aiWins++;
+
   setTimeout(() => {
     if (tttState.round >= 4) {
       closeModal();
@@ -54,9 +56,9 @@ function evaluateRoundEnd() {
 }
 
 function checkWinner(b) {
-  const lines = [,,,
-,,,
-,
+  const lines = [, [3, 4, 5], [6, 7, 8],
+, [1, 4, 7], [2, 5, 8],
+, [2, 4, 6]
   ];
   for (const [a, c, d] of lines) {
     if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a];
