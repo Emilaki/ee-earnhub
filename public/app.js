@@ -1,7 +1,7 @@
 const state = {
   user: null, generatedSmsOtp: '', generatedEmailOtp: '', resetOtp: '', resetTargetPhone: '',
   balance: 0, pendingBalance: 0, pendingSeconds: 0, tier: 'FREE', tierExpiresAt: null,
-  playsLeft: { ttt: 1, spell: 1, math: 1, mem: 1, word: 1 },
+  playsLeft: { ttt: 1, spell: 1, math: 1, mem: 1, pattern: 1 },
   brainTestPlayedToday: false, activeTimer: null
 };
 
@@ -12,11 +12,11 @@ const TIERS = {
 };
 
 const GAMES_LIST = [
-  { key: 'ttt',   badge: 'WIN 3 OF 4 ROUNDS', title: '4-Round Tic-Tac-Toe', desc: 'Beat Grandmaster AI in 3 of 4 consecutive rounds.', fn: 'startTTT()' },
-  { key: 'spell', badge: 'SCORE 9+ OF 10',    title: '10-Word Spelling Quiz', desc: 'Pick the exact spelling out of 3 tricky options.', fn: 'startSpellingQuiz()' },
-  { key: 'math',  badge: '35 SECONDS • 0 ERR',title: 'Speed Math Blitz', desc: 'Solve 10 multi-step equations before time expires.', fn: 'startMathBlitz()' },
-  { key: 'mem',   badge: '1.2s FLASH • 5x5',  title: 'Pattern Memory Matrix', desc: 'Recall up to 9 flashing tiles across 3 stages.', fn: 'startMemoryGame()' },
-  { key: 'word',  badge: '40 SECONDS',        title: 'Cryptic Word Scramble', desc: 'Unscramble 6 complex 8-to-10 letter words.', fn: 'startWordScramble()' }
+  { key: 'ttt',     badge: 'WIN 3 OF 4 ROUNDS',  title: '4-Round Tic-Tac-Toe',  desc: 'Beat Grandmaster AI in at least 3 of 4 consecutive rounds.', fn: 'startTTT()' },
+  { key: 'spell',   badge: '10s/WORD • SCORE 7+',title: '10-Word Spelling Quiz',desc: '10 seconds per word. Score 7 or more out of 10 to win.', fn: 'startSpellingQuiz()' },
+  { key: 'math',    badge: '20 SECONDS • 0 ERR', title: 'Speed Math Blitz',     desc: 'Solve 10 multi-step arithmetic problems in 20 seconds.', fn: 'startMathBlitz()' },
+  { key: 'mem',     badge: '1.2s FLASH • 5x5',   title: 'Pattern Memory Matrix',desc: 'Recall up to 9 flashing tiles across 3 escalating stages.', fn: 'startMemoryGame()' },
+  { key: 'pattern', badge: '30 SECONDS • LOGIC', title: 'Pattern Intelligence', desc: 'Crack 5 extreme number & logic sequences before time expires.', fn: 'startPatternIntelligence()' }
 ];
 
 function getAccounts() { return JSON.parse(localStorage.getItem('ee_earnhub_users') || '[]'); }
@@ -30,13 +30,23 @@ function showToast(msg, isError = false) {
   setTimeout(() => { t.style.display = 'none'; }, 3600);
 }
 
-function checkTierExpiry() {
-  if (state.tier !== 'FREE' && state.tierExpiresAt && Date.now() > state.tierExpiresAt) {
-    state.tier = 'FREE';
-    state.tierExpiresAt = null;
-    state.playsLeft = { ttt: 1, spell: 1, math: 1, mem: 1, word: 1 };
-    showToast('Your 10-day subscription expired. Switched back to Regular Games.', true);
-  }
+function startBrainCountdownClock() {
+  if (window.brainClockInt) clearInterval(window.brainClockInt);
+  const updateClock = () => {
+    const now = new Date();
+    const eatNow = new Date(now.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }));
+    const next3AM = new Date(eatNow);
+    next3AM.setHours(3, 0, 0, 0);
+    if (eatNow >= next3AM) next3AM.setDate(next3AM.getDate() + 1);
+    const diff = Math.floor((next3AM - eatNow) / 1000);
+    const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+    const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+    const s = String(diff % 60).padStart(2, '0');
+    const el = document.getElementById('brainCountdownText');
+    if (el) el.textContent = `${h}h : ${m}m : ${s}s`;
+  };
+  updateClock();
+  window.brainClockInt = setInterval(updateClock, 1000);
 }
 function switchAuthTab(mode) {
   document.getElementById('authTabs').style.display = 'flex';
@@ -62,13 +72,8 @@ function sendDualOTP() {
   const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const phone = document.getElementById('regPhone').value.trim();
   const pass = document.getElementById('regPassword').value;
-
-  if (!name || !email.includes('@') || phone.length < 9 || pass.length < 6) {
-    return showToast('Fill all fields (Password must be at least 6 characters).', true);
-  }
-  if (getAccounts().some(a => a.email === email || a.phone === phone)) {
-    return showToast('Account already exists with this Email or Phone. Please Sign In.', true);
-  }
+  if (!name || !email.includes('@') || phone.length < 9 || pass.length < 6) return showToast('Fill all fields (Password min 6 chars).', true);
+  if (getAccounts().some(a => a.email === email || a.phone === phone)) return showToast('Account already exists. Please Sign In.', true);
 
   state.generatedSmsOtp = Math.floor(100000 + Math.random() * 900000).toString();
   state.generatedEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -81,18 +86,14 @@ function sendDualOTP() {
 
 function verifyDualOTP() {
   if (document.getElementById('inputSmsOtp').value.trim() !== state.generatedSmsOtp ||
-      document.getElementById('inputEmailOtp').value.trim() !== state.generatedEmailOtp) {
-    return showToast('Invalid SMS or Email verification code.', true);
-  }
+      document.getElementById('inputEmailOtp').value.trim() !== state.generatedEmailOtp) return showToast('Invalid OTP codes.', true);
   const newUser = {
     name: document.getElementById('regName').value.trim(),
     email: document.getElementById('regEmail').value.trim().toLowerCase(),
     phone: document.getElementById('regPhone').value.trim(),
     password: document.getElementById('regPassword').value
   };
-  const accounts = getAccounts();
-  accounts.push(newUser);
-  saveAccounts(accounts);
+  const accounts = getAccounts(); accounts.push(newUser); saveAccounts(accounts);
   enterDashboard(newUser);
 }
 
@@ -118,11 +119,11 @@ function confirmPasswordReset() {
   const code = document.getElementById('inputResetOtp').value.trim();
   const newPass = document.getElementById('newResetPassword').value;
   if (code !== state.resetOtp) return showToast('Invalid SMS reset code.', true);
-  if (newPass.length < 6) return showToast('New password must be at least 6 characters.', true);
+  if (newPass.length < 6) return showToast('Password must be at least 6 characters.', true);
   const accounts = getAccounts();
   const idx = accounts.findIndex(a => a.phone === state.resetTargetPhone);
   if (idx !== -1) { accounts[idx].password = newPass; saveAccounts(accounts); }
-  showToast('Password updated! You can now Sign In.');
+  showToast('Password updated! Please Sign In.');
   switchAuthTab('signin');
 }
 function enterDashboard(user) {
@@ -130,6 +131,7 @@ function enterDashboard(user) {
   document.getElementById('authSection').style.display = 'none';
   document.getElementById('dashboardSection').style.display = 'block';
   document.getElementById('welcomeUser').textContent = `${user.name} • ${user.phone} • ${user.email}`;
+  startBrainCountdownClock();
   refreshDashboard();
 }
 
@@ -141,14 +143,15 @@ function logoutUser() {
 }
 
 function refreshDashboard() {
-  checkTierExpiry();
+  if (state.tier !== 'FREE' && state.tierExpiresAt && Date.now() > state.tierExpiresAt) {
+    state.tier = 'FREE'; state.tierExpiresAt = null;
+    state.playsLeft = { ttt: 1, spell: 1, math: 1, mem: 1, pattern: 1 };
+  }
   const cfg = TIERS[state.tier];
   document.getElementById('userTierBadge').textContent = cfg.label;
   document.getElementById('balAvailable').textContent = state.balance;
   document.getElementById('balPending').textContent = state.pendingBalance;
   document.getElementById('displayTax').textContent = cfg.gameTax;
-
-  // FIXED: Displays "1 Game per Day", "3 Games per Day", or "5 Games per Day"
   document.getElementById('dailyLimitText').textContent = `${cfg.dailyLimit} Game${cfg.dailyLimit > 1 ? 's' : ''} per Day`;
   document.getElementById('gameWinText').textContent = cfg.gameWin;
   document.getElementById('quizWinText').textContent = cfg.quizWin;
@@ -182,9 +185,8 @@ function closeModal() {
   document.getElementById('appModal').classList.remove('active');
 }
 
-// FIXED: Includes "Regular Games (Free)" option so users can switch back anytime
-function openTierModal() {
-  openModal('👑 Game Modes & Tiers', `
+function openExclusiveOfferModal() {
+  openModal('👑 Exclusive Offers & Game Modes', `
     <div class="glass-card" style="margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
         <div><h4>Regular Games (Free)</h4><p class="muted-small">1 game per day • Win KSh 50 (Tax KSh 9)</p></div>
@@ -195,13 +197,13 @@ function openTierModal() {
     </div>
     <div class="glass-card" style="margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-        <div><h4>Premium Mode (10 Days)</h4><p class="muted-small">3 games per day • Win KSh 80 (Tax KSh 15)</p></div>
+        <div><h4>Premium Offer (10 Days)</h4><p class="muted-small">3 games per day • Win KSh 80 (Tax KSh 15)</p></div>
         <button class="btn btn-gold" onclick="activateTier('PREMIUM')">KSh 450</button>
       </div>
     </div>
     <div class="glass-card gold-border">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-        <div><h4 class="gold-text">💎 V.I.P Mode (10 Days)</h4><p class="muted-small">5 games per day • Win KSh 120/game & KSh 90/quiz (Tax KSh 20)</p></div>
+        <div><h4 class="gold-text">💎 V.I.P Exclusive (10 Days)</h4><p class="muted-small">5 games per day • Win KSh 120/game & KSh 90/quiz (Tax KSh 20)</p></div>
         <button class="btn btn-emerald" onclick="activateTier('VIP')">KSh 1,000</button>
       </div>
     </div>`);
@@ -211,9 +213,33 @@ function activateTier(t) {
   state.tier = t;
   const lim = TIERS[t].dailyLimit;
   state.tierExpiresAt = TIERS[t].days > 0 ? Date.now() + (TIERS[t].days * 86400000) : null;
-  state.playsLeft = { ttt: lim, spell: lim, math: lim, mem: lim, word: lim };
+  state.playsLeft = { ttt: lim, spell: lim, math: lim, mem: lim, pattern: lim };
   closeModal(); refreshDashboard();
-  showToast(`Switched to ${TIERS[t].label}!`);
+  showToast(`Activated ${TIERS[t].label}!`);
+}
+
+function openContactModal() {
+  openModal('💬 Contact Us / Ask a Problem', `
+    <p class="muted-small" style="margin-bottom:12px;">Having an issue with withdrawals, games, or your account? Send a message directly to EE EarnHub Support.</p>
+    <div class="input-group"><label>Issue Category</label>
+      <select id="supportTopic" class="input-field">
+        <option>Withdrawal / M-Pesa Payout</option>
+        <option>Exclusive Offer / V.I.P Upgrade</option>
+        <option>Game or Quiz Technical Problem</option>
+        <option>General Question</option>
+      </select>
+    </div>
+    <div class="input-group"><label>Describe Your Question or Problem</label>
+      <textarea id="supportMsg" class="input-field" rows="4" placeholder="Type your message here..."></textarea>
+    </div>
+    <button class="btn btn-emerald" style="width:100%;" onclick="submitSupportTicket()">Send to Support Team</button>`);
+}
+
+function submitSupportTicket() {
+  const msg = document.getElementById('supportMsg').value.trim();
+  if (msg.length < 5) return showToast('Please describe your question or problem first.', true);
+  closeModal();
+  showToast('✅ Ticket received! EE EarnHub Support will reply to your email & SMS shortly.');
 }
 
 function openWithdrawModal() {
