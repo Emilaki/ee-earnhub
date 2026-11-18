@@ -1,4 +1,4 @@
-/* 1. 4-ROUND EXTREME TIC-TAC-TOE */
+/* 1. FIXED 4-ROUND EXTREME TIC-TAC-TOE */
 let tttState = { round: 1, userWins: 0, aiWins: 0, board: Array(9).fill(null) };
 
 function startTTT() {
@@ -27,7 +27,7 @@ function playTTTMove(idx) {
   if (tttState.board[idx] || checkWinner(tttState.board)) return;
   tttState.board[idx] = 'X';
   if (evaluateRoundEnd()) return;
-  const aiMove = Math.random() < 0.92 ? getBestMove(tttState.board) : getRandomMove(tttState.board);
+  const aiMove = Math.random() < 0.88 ? getBestMove(tttState.board) : getRandomMove(tttState.board);
   if (aiMove !== -1) tttState.board[aiMove] = 'O';
   evaluateRoundEnd();
 }
@@ -52,12 +52,15 @@ function evaluateRoundEnd() {
   }, 600);
   return true;
 }
+
 function checkWinner(b) {
   const lines = [,,,
 ,,,
 ,
   ];
-  for (const [a, c, d] of lines) if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a];
+  for (const [a, c, d] of lines) {
+    if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a];
+  }
   return null;
 }
 
@@ -95,7 +98,7 @@ function minimax(b, depth, isMax) {
   }
   return best;
 }
-/* 2. 10-WORD SPELLING QUIZ (SCORE > 8) */
+/* 2. 10-WORD SPELLING QUIZ (10s TIMER PER QUESTION • SCORE 7+/10) */
 const SPELLING_BANK = [
   { opts: ['Accommodate', 'Acommodate', 'Accomodate'], ans: 0 },
   { opts: ['Mischevious', 'Mischievous', 'Mischievious'], ans: 1 },
@@ -113,37 +116,49 @@ function startSpellingQuiz() {
   if (state.playsLeft.spell <= 0) return;
   state.playsLeft.spell--;
   refreshDashboard();
-  let qIdx = 0, score = 0;
-  openModal('📖 Extreme Spelling Quiz (Need 9+/10)', '');
+  let qIdx = 0, score = 0, qTimer = 10;
+  openModal('📖 Extreme Spelling Quiz (Score 7+/10)', '');
+
   const renderQ = () => {
+    if (state.activeTimer) clearInterval(state.activeTimer);
     if (qIdx >= SPELLING_BANK.length) {
       closeModal();
-      return score > 8 ? awardGameWin(true) : showToast(`Scored ${score}/10. Need 9+ to win.`, true);
+      return score >= 7 ? awardGameWin(true) : showToast(`Scored ${score}/10. Need 7+ to win.`, true);
     }
+    qTimer = 10;
     const item = SPELLING_BANK[qIdx];
-    document.getElementById('modalBody').innerHTML = `
-      <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-        <span>Word <b>${qIdx + 1}/10</b></span><span>Correct: <b class="emerald-text">${score}</b></span>
-      </div>
-      ${item.opts.map((w, idx) => `<button class="quiz-opt" onclick="ansSpell(${idx})">${w}</button>`).join('')}`;
+    const draw = () => {
+      document.getElementById('modalBody').innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+          <span>Word <b>${qIdx + 1}/10</b></span>
+          <span>Score: <b class="emerald-text">${score}</b></span>
+          <span style="color:var(--crimson); font-weight:800;">⏱ ${qTimer}s</span>
+        </div>
+        ${item.opts.map((w, idx) => `<button class="quiz-opt" onclick="ansSpell(${idx})">${w}</button>`).join('')}`;
+    };
+    draw();
+    state.activeTimer = setInterval(() => {
+      if (--qTimer <= 0) { qIdx++; renderQ(); } else draw();
+    }, 1000);
   };
+
   window.ansSpell = (i) => { if (i === SPELLING_BANK[qIdx].ans) score++; qIdx++; renderQ(); };
   renderQ();
 }
-
-/* 3. SPEED MATH BLITZ (10 EQUATIONS IN 35s) */
+/* 3. SPEED MATH BLITZ (20 SECONDS) */
 function startMathBlitz() {
   if (state.playsLeft.math <= 0) return;
   state.playsLeft.math--;
   refreshDashboard();
-  let solved = 0, timeLeft = 35, currentAns = 0;
-  openModal('⚡ Extreme Speed Math Blitz', '');
+  let solved = 0, timeLeft = 20, currentAns = 0;
+  openModal('⚡ Extreme Speed Math Blitz (20s)', '');
+
   const nextEq = () => {
-    const a = Math.floor(Math.random() * 19) + 12, b = Math.floor(Math.random() * 9) + 6, c = Math.floor(Math.random() * 45) + 15;
+    const a = Math.floor(Math.random() * 15) + 11, b = Math.floor(Math.random() * 8) + 5, c = Math.floor(Math.random() * 35) + 10;
     currentAns = (a * b) - c;
     document.getElementById('modalBody').innerHTML = `
       <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-        <span>Solved: <b>${solved}/10</b></span><span style="color:var(--crimson); font-weight:800;">⏱ ${timeLeft}s</span>
+        <span>Solved: <b>${solved}/10</b></span><span id="mathClock" style="color:var(--crimson); font-weight:800;">⏱ ${timeLeft}s</span>
       </div>
       <div style="font-size:1.7rem; font-weight:800; text-align:center; padding:20px; background:#090e1f; border-radius:12px; color:var(--gold); margin-bottom:14px;">(${a} × ${b}) − ${c} = ?</div>
       <input type="number" id="mathInput" class="input-field" placeholder="Exact answer..." />
@@ -152,17 +167,23 @@ function startMathBlitz() {
     inp.focus();
     inp.onkeydown = (e) => { if (e.key === 'Enter') submitMath(); };
   };
+
   window.submitMath = () => {
     const val = parseInt(document.getElementById('mathInput').value, 10);
     if (val !== currentAns) { closeModal(); return showToast('Wrong answer! Zero errors allowed.', true); }
     if (++solved >= 10) { closeModal(); return awardGameWin(false); }
     nextEq();
   };
+
   nextEq();
   state.activeTimer = setInterval(() => {
-    if (--timeLeft <= 0) { closeModal(); showToast('Time expired!', true); }
+    timeLeft--;
+    const mc = document.getElementById('mathClock');
+    if (mc) mc.textContent = `⏱ ${timeLeft}s`;
+    if (timeLeft <= 0) { closeModal(); showToast('20 seconds expired!', true); }
   }, 1000);
 }
+
 /* 4. 5x5 PATTERN MEMORY MATRIX */
 function startMemoryGame() {
   if (state.playsLeft.mem <= 0) return;
@@ -170,6 +191,7 @@ function startMemoryGame() {
   refreshDashboard();
   let level = 1, targetNodes = [], userPicks = [], locked = true;
   openModal('🧩 5x5 Pattern Memory', '');
+
   const startLevel = () => {
     locked = true; userPicks = []; targetNodes = [];
     while (targetNodes.length < 6 + level) {
@@ -179,6 +201,7 @@ function startMemoryGame() {
     renderGrid(true);
     setTimeout(() => { locked = false; renderGrid(false); }, 1200);
   };
+
   const renderGrid = (showLit) => {
     document.getElementById('modalBody').innerHTML = `
       <div style="text-align:center; margin-bottom:8px;">Stage <b>${level}/3</b> • ${showLit ? 'MEMORIZE!' : 'Tap flashed tiles!'}</div>
@@ -186,6 +209,7 @@ function startMemoryGame() {
         ${Array.from({ length: 25 }, (_, i) => `<div class="mem-tile ${showLit && targetNodes.includes(i) ? 'lit' : ''} ${!showLit && userPicks.includes(i) ? 'picked' : ''}" onclick="pickTile(${i})"></div>`).join('')}
       </div>`;
   };
+
   window.pickTile = (i) => {
     if (locked || userPicks.includes(i)) return;
     if (!targetNodes.includes(i)) { closeModal(); return showToast('Wrong tile! Memory failed.', true); }
@@ -198,40 +222,48 @@ function startMemoryGame() {
   };
   startLevel();
 }
+/* 5. PATTERN INTELLIGENCE (REPLACED WORD SCRAMBLE) */
+const PATTERN_BANK = [
+  { seq: "3, 8, 18, 38, 78, ?", opts: ["148", "158", "168"], ans: 1 },
+  { seq: "2, 6, 15, 31, 56, ?", opts: ["81", "92", "97"], ans: 1 },
+  { seq: "144, 121, 100, 81, 64, ?", opts: ["49", "36", "54"], ans: 0 },
+  { seq: "5, 11, 23, 47, 95, ?", opts: ["181", "191", "195"], ans: 1 },
+  { seq: "1, 4, 13, 40, 121, ?", opts: ["364", "243", "361"], ans: 0 }
+];
 
-/* 5. CRYPTIC WORD SCRAMBLE */
-const SCRAMBLE_WORDS = ['LABYRINTH', 'KALEIDOSCOPE', 'SYNCHRONIZE', 'QUINTESSENCE', 'EQUILIBRIUM', 'CRYPTOGRAPHY'];
-
-function startWordScramble() {
-  if (state.playsLeft.word <= 0) return;
-  state.playsLeft.word--;
+function startPatternIntelligence() {
+  if (state.playsLeft.pattern <= 0) return;
+  state.playsLeft.pattern--;
   refreshDashboard();
-  let idx = 0, timeLeft = 40;
-  openModal('🔤 Cryptic Word Scramble', '');
-  const renderWord = () => {
-    const scrambled = SCRAMBLE_WORDS[idx].split('').sort(() => Math.random() - 0.5).join('');
+  let idx = 0, timeLeft = 30;
+  openModal('🧬 Pattern Intelligence (30s)', '');
+
+  const renderPat = () => {
+    const item = PATTERN_BANK[idx];
     document.getElementById('modalBody').innerHTML = `
       <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-        <span>Word <b>${idx + 1}/6</b></span><span style="color:var(--crimson); font-weight:800;">⏱ ${timeLeft}s</span>
+        <span>Sequence <b>${idx + 1}/5</b></span><span id="patClock" style="color:var(--crimson); font-weight:800;">⏱ ${timeLeft}s</span>
       </div>
-      <div style="font-size:1.5rem; letter-spacing:4px; font-weight:800; text-align:center; padding:18px; background:#090e1f; border-radius:12px; color:var(--gold); margin-bottom:14px;">${scrambled}</div>
-      <input type="text" id="scrambleInput" class="input-field" placeholder="Unscramble..." style="text-transform:uppercase;" />
-      <button class="btn btn-gold" style="width:100%; margin-top:12px;" onclick="checkScramble()">Verify</button>`;
-    const inp = document.getElementById('scrambleInput');
-    inp.focus();
-    inp.onkeydown = (e) => { if (e.key === 'Enter') checkScramble(); };
+      <div style="font-size:1.45rem; font-weight:800; text-align:center; padding:18px; background:#090e1f; border-radius:12px; color:var(--gold); margin-bottom:14px;">${item.seq}</div>
+      ${item.opts.map((o, i) => `<button class="quiz-opt" onclick="ansPattern(${i})">${o}</button>`).join('')}`;
   };
-  window.checkScramble = () => {
-    if (document.getElementById('scrambleInput').value.trim().toUpperCase() !== SCRAMBLE_WORDS[idx]) return showToast('Wrong word!', true);
-    if (++idx >= SCRAMBLE_WORDS.length) { closeModal(); return awardGameWin(false); }
-    renderWord();
+
+  window.ansPattern = (i) => {
+    if (i !== PATTERN_BANK[idx].ans) { closeModal(); return showToast('Wrong logic pattern! Failed.', true); }
+    if (++idx >= PATTERN_BANK.length) { closeModal(); return awardGameWin(false); }
+    renderPat();
   };
-  renderWord();
+
+  renderPat();
   state.activeTimer = setInterval(() => {
-    if (--timeLeft <= 0) { closeModal(); showToast('Time expired!', true); }
+    timeLeft--;
+    const pc = document.getElementById('patClock');
+    if (pc) pc.textContent = `⏱ ${timeLeft}s`;
+    if (timeLeft <= 0) { closeModal(); showToast('30 seconds expired!', true); }
   }, 1000);
 }
-/* 6. 3:00 AM BRAIN TEST (15 Qs • 5s EACH • 12+ PASS • 0% TAX) */
+
+/* 6. 3:00 AM BRAIN TEST (15 Qs • 7s EACH • 12+ PASS • 0% TAX) */
 const BRAIN_QUESTIONS = [
   { q: "What is 17 × 14 − 38?", opts: ["190", "200", "210"], ans: 1 },
   { q: "Atomic symbol 'W' stands for:", opts: ["Tungsten", "Wolframite", "Bismuth"], ans: 0 },
@@ -253,15 +285,16 @@ const BRAIN_QUESTIONS = [
 function startBrainTest() {
   if (state.brainTestPlayedToday) return showToast('Already attempted today’s 3:00 AM Test!', true);
   state.brainTestPlayedToday = true;
-  let qIdx = 0, score = 0, qTimer = 5;
-  openModal('🧠 3:00 AM Brain Test (0% Tax)', '');
+  let qIdx = 0, score = 0, qTimer = 7;
+  openModal('🧠 3:00 AM Brain Test (7s/Question • 0% Tax)', '');
+
   const loadBrainQ = () => {
     if (state.activeTimer) clearInterval(state.activeTimer);
     if (qIdx >= BRAIN_QUESTIONS.length) {
       closeModal();
       return score >= 12 ? awardGameWin(false, 40) : showToast(`Scored ${score}/15. Need 12+ to pass.`, true);
     }
-    qTimer = 5;
+    qTimer = 7;
     const item = BRAIN_QUESTIONS[qIdx];
     const renderFrame = () => {
       document.getElementById('modalBody').innerHTML = `
@@ -276,6 +309,7 @@ function startBrainTest() {
       if (--qTimer <= 0) { qIdx++; loadBrainQ(); } else renderFrame();
     }, 1000);
   };
+
   window.ansBrain = (i) => { if (i === BRAIN_QUESTIONS[qIdx].ans) score++; qIdx++; loadBrainQ(); };
   loadBrainQ();
 }
