@@ -1,4 +1,4 @@
-/* 1. FIXED 4-ROUND EXTREME TIC-TAC-TOE */
+/* 1. 4-ROUND EXTREME TIC-TAC-TOE */
 let tttState = { round: 1, userWins: 0, aiWins: 0, board: Array(9).fill(null) };
 
 function startTTT() {
@@ -56,11 +56,11 @@ function evaluateRoundEnd() {
 }
 
 function checkWinner(b) {
-  const lines = [, [3, 4, 5], [6, 7, 8],
-, [1, 4, 7], [2, 5, 8],
-, [2, 4, 6]
-  ];
-  for (const [a, c, d] of lines) {
+  const combos = ['012', '345', '678', '036', '147', '258', '048', '246'];
+  for (const combo of combos) {
+    const a = Number(combo.charAt(0));
+    const c = Number(combo.charAt(1));
+    const d = Number(combo.charAt(2));
     if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a];
   }
   return null;
