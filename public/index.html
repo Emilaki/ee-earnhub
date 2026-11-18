@@ -19,31 +19,23 @@
   </div>
 
   <div class="container">
+    <!-- AUTH SECTION -->
     <div id="authSection" class="auth-wrapper glass-card gold-border">
       <div class="logo-badge brand-font">EE</div>
       <h1 class="brand-font" style="text-align:center;">EE EarnHub</h1>
       <p class="muted-small" style="text-align:center; margin-bottom:16px;">Free Entry • Secure Verification • Extreme Skill Arena</p>
 
       <div id="authTabs" style="display:flex; gap:8px; margin-bottom:18px;">
-        <button id="tabSignIn" class="btn btn-gold" style="flex:1;" onclick="switchAuthTab('signin')">Sign In</button>
-        <button id="tabSignUp" class="btn btn-outline" style="flex:1;" onclick="switchAuthTab('signup')">Sign Up (Free)</button>
+        <button id="tabSignUp" class="btn btn-gold" style="flex:1;" onclick="switchAuthTab('signup')">Sign Up (Free)</button>
+        <button id="tabSignIn" class="btn btn-outline" style="flex:1;" onclick="switchAuthTab('signin')">Sign In</button>
       </div>
 
-      <div id="viewSignIn">
-        <div class="input-group"><label>Email or Mobile Number</label><input type="text" id="loginIdentifier" class="input-field" placeholder="brian@example.com or 0712345678" /></div>
-        <div class="input-group"><label>Password</label><input type="password" id="loginPassword" class="input-field" placeholder="Enter your password" /></div>
-        <div style="text-align:right; margin-bottom:14px;">
-          <a href="#" onclick="showForgotView(); return false;" style="color:var(--gold); font-size:0.82rem; text-decoration:none;">Forgot Password?</a>
-        </div>
-        <button class="btn btn-emerald" style="width:100%;" onclick="handleSignIn()">Sign In to Arena</button>
-      </div>
-
-      <div id="viewSignUp" style="display:none;">
+      <div id="viewSignUp">
         <div class="input-group"><label>Full Name</label><input type="text" id="regName" class="input-field" placeholder="Brian Kamau" /></div>
         <div class="input-group"><label>Email Address</label><input type="email" id="regEmail" class="input-field" placeholder="brian@example.com" /></div>
         <div class="input-group"><label>Kenyan Mobile (+254)</label><input type="tel" id="regPhone" class="input-field" placeholder="0712345678" /></div>
         <div class="input-group"><label>Create Password</label><input type="password" id="regPassword" class="input-field" placeholder="Min 6 characters" /></div>
-        <button class="btn btn-gold" style="width:100%;" onclick="sendDualOTP()">Send Mobile & Email Verification Codes</button>
+        <button class="btn btn-gold" style="width:100%;" onclick="sendDualOTP()">Send Mobile & Email Codes</button>
       </div>
 
       <div id="viewSignupOTP" style="display:none;">
@@ -53,6 +45,15 @@
         <button class="btn btn-emerald" style="width:100%;" onclick="verifyDualOTP()">Verify & Create Account</button>
       </div>
 
+      <div id="viewSignIn" style="display:none;">
+        <div class="input-group"><label>Email or Mobile Number</label><input type="text" id="loginIdentifier" class="input-field" placeholder="brian@example.com or 0712345678" /></div>
+        <div class="input-group"><label>Password</label><input type="password" id="loginPassword" class="input-field" placeholder="Enter your password" /></div>
+        <div style="text-align:right; margin-bottom:14px;">
+          <button type="button" onclick="showForgotView()" style="background:none; border:none; color:var(--gold); font-size:0.84rem; cursor:pointer; text-decoration:underline;">Forgot Password?</button>
+        </div>
+        <button class="btn btn-emerald" style="width:100%;" onclick="handleSignIn()">Sign In to Arena</button>
+      </div>
+
       <div id="viewForgot" style="display:none;">
         <h3 style="margin-bottom:10px; font-size:1.05rem;">Reset Password via Mobile SMS</h3>
         <div id="forgotStep1">
@@ -60,29 +61,31 @@
           <button class="btn btn-gold" style="width:100%;" onclick="sendResetSMS()">Send SMS Reset Code</button>
         </div>
         <div id="forgotStep2" style="display:none;">
-          <div class="otp-banner">Mobile Reset Code Sent: <b id="hintResetSms" class="gold-text"></b></div>
+          <div class="otp-banner">Mobile Reset Code: <b id="hintResetSms" class="gold-text"></b></div>
           <div class="input-group"><label>6-Digit Mobile Code</label><input type="text" id="inputResetOtp" class="input-field" maxlength="6" /></div>
-          <div class="input-group"><label>New Password</label><input type="password" id="newResetPassword" class="input-field" placeholder="Enter new password" /></div>
+          <div class="input-group"><label>New Password</label><input type="password" id="newResetPassword" class="input-field" placeholder="Min 6 characters" /></div>
           <button class="btn btn-emerald" style="width:100%;" onclick="confirmPasswordReset()">Update Password & Sign In</button>
         </div>
         <div style="text-align:center; margin-top:12px;">
-          <a href="#" onclick="switchAuthTab('signin'); return false;" style="color:var(--text-muted); font-size:0.82rem;">← Back to Sign In</a>
+          <button type="button" onclick="switchAuthTab('signin')" style="background:none; border:none; color:var(--text-muted); font-size:0.84rem; cursor:pointer;">← Back to Sign In</button>
         </div>
       </div>
     </div>
 
+    <!-- DASHBOARD -->
     <div id="dashboardSection" style="display:none;">
       <div class="topbar glass-card">
         <div>
           <div style="display:flex; align-items:center; gap:10px;">
             <h2 class="brand-font">EE EarnHub</h2>
-            <span id="userTierBadge" class="tier-pill">FREE TIER</span>
+            <span id="userTierBadge" class="tier-pill">REGULAR (FREE)</span>
           </div>
           <p id="welcomeUser" class="muted-small"></p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-outline" onclick="openTierModal()">👑 Tiers</button>
+          <button class="btn btn-gold" onclick="openExclusiveOfferModal()">👑 Exclusive Offer</button>
           <button class="btn btn-emerald" onclick="openWithdrawModal()">💸 Withdraw</button>
+          <button class="btn btn-outline" onclick="openContactModal()">💬 Contact Us</button>
           <button class="btn btn-outline" onclick="logoutUser()">Logout</button>
         </div>
       </div>
@@ -99,19 +102,21 @@
           <div id="pendingTimerText" class="muted-small">No active payout</div>
         </div>
         <div class="glass-card">
-          <div class="stat-label">Tier Privileges</div>
-          <div class="stat-value" style="font-size:1.3rem;"><span id="dailyLimitText">1 Play/Day</span> • <span class="emerald-text">KSh <span id="gameWinText">50</span></span></div>
+          <div class="stat-label">Membership Privileges</div>
+          <div class="stat-value" style="font-size:1.3rem;"><span id="dailyLimitText">1 Game per Day</span> • <span class="emerald-text">KSh <span id="gameWinText">50</span></span></div>
           <div class="muted-small">Quiz: <b>KSh <span id="quizWinText">40</span></b> • <b id="tierExpiryText">Unlimited</b></div>
         </div>
       </div>
 
+      <!-- 3:00 AM SPECIAL WITH LIVE COUNTDOWN -->
       <div class="glass-card gold-border special-banner">
         <div>
           <span class="hard-badge gold-badge">⏰ 3:00 AM SPECIAL • 0% TAX</span>
           <h3 class="brand-font">3:00 AM Extreme Brain Test</h3>
-          <p class="muted-small">15 Questions • <b>5s each</b> • Score <b>12+</b> to win <b>KSh 40 Tax-Free</b></p>
+          <p class="muted-small">15 Questions • <b>7s each</b> • Score <b>12+</b> to win <b>KSh 40 Tax-Free</b></p>
+          <p style="font-size:0.85rem; margin-top:6px;">Next 3:00 AM EAT Window: <b id="brainCountdownText" class="gold-text">Calculating...</b></p>
         </div>
-        <button class="btn btn-gold" onclick="startBrainTest()">Start 3:00 AM Test</button>
+        <button class="btn btn-gold" onclick="startBrainTest()">Launch 3:00 AM Test</button>
       </div>
 
       <div class="section-title"><span class="brand-font">⚔️ Extreme Skill Arena</span></div>
